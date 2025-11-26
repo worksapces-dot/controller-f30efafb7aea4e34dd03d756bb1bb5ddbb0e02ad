@@ -131,12 +131,20 @@ export const getProfilePosts = async () => {
 
     const integration = profile?.integrations?.[0]
 
-    if (!integration || !integration.instagramId || !integration.token) {
-      console.log('🔴 No Instagram integration or missing instagramId/token for user')
+    if (!integration || !integration.token) {
+      console.log('🔴 No Instagram integration or missing token for user')
       return { status: 404 }
     }
 
-    const url = `${process.env.INSTAGRAM_BASE_URL}/v21.0/${integration.instagramId}/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${integration.token}`
+    // Prefer explicit instagramId if we have it; otherwise fall back to /me/media
+    const base = process.env.INSTAGRAM_BASE_URL
+    const commonQuery =
+      'fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=' +
+      integration.token
+
+    const url = integration.instagramId
+      ? `${base}/v21.0/${integration.instagramId}/media?${commonQuery}`
+      : `${base}/me/media?${commonQuery}`
 
     const posts = await fetch(url)
     const parsed = await posts.json()
