@@ -2,6 +2,8 @@
 
 import { onCurrentUser } from '../user'
 import { findUser } from '../user/queries'
+import { refreshToken } from '@/lib/fetch'
+import { updateIntegration } from '../integrations/queries'
 import {
   addKeyWord,
   addListener,
@@ -148,6 +150,48 @@ export const getProfilePosts = async () => {
 
     const posts = await fetch(url)
     const parsed = await posts.json()
+
+    // If token is expired, try to refresh it once and retry.
+    if (parsed?.error?.code === 190) {
+      console.log('🔴 Instagram token expired while fetching posts, refreshing...')
+
+      try {
+        const refreshed = await refreshToken(integration.token)
+
+        const today = new Date()
+        const expire_date = today.setDate(today.getDate() + 60)
+
+        await updateIntegration(
+          refreshed.access_token,
+          new Date(expire_date),
+          integration.id
+        )
+
+        const newCommonQuery =
+          'fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=' +
+          refreshed.access_token
+
+        const retryUrl = integration.instagramId
+          ? `${base}/v21.0/${integration.instagramId}/media?${newCommonQuery}`
+          : `${base}/me/media?${newCommonQuery}`
+
+        const retry = await fetch(retryUrl)
+        const retryParsed = await retry.json()
+
+        if (Array.isArray(retryParsed?.data)) {
+          return { status: 200, data: retryParsed.data }
+        }
+
+        console.log(
+          '🔴 Error in getting posts even after refreshing token:',
+          retryParsed
+        )
+        return { status: 404 }
+      } catch (refreshError) {
+        console.log('🔴 Failed to refresh Instagram token:', refreshError)
+        return { status: 404 }
+      }
+    }
 
     // Expected shape: { data: [...] }
     if (Array.isArray(parsed?.data)) {
