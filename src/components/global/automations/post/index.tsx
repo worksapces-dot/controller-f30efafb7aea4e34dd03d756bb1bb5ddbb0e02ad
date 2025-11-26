@@ -17,12 +17,22 @@ const PostButton = ({ id }: Props) => {
   const { data } = useQueryAutomationPosts()
   const { posts, onSelectPost, mutate, isPending } = useAutomationPosts(id)
 
+  // Instagram Graph API can return different shapes when there is an error.
+  // Be defensive and always fall back to an empty array instead of assuming
+  // `data.data.data` exists.
+  const mediaItems: InstagramPostProps[] =
+    data?.status === 200 && Array.isArray((data as any)?.data?.data)
+      ? ((data as any).data.data as InstagramPostProps[])
+      : []
+
+  const hasMedia = data?.status === 200 && mediaItems.length > 0
+
   return (
     <TriggerButton label="Attach a post">
-      {data?.status === 200 ? (
+      {hasMedia ? (
         <div className="flex flex-col gap-y-3 w-full">
           <div className="flex flex-wrap w-full gap-3">
-            {data.data.data.map((post: InstagramPostProps) => (
+            {mediaItems.map((post: InstagramPostProps) => (
               <div
                 className="relative w-4/12 aspect-square rounded-lg cursor-pointer overflow-hidden"
                 key={post.id}
