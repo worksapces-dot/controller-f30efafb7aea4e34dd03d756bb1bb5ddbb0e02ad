@@ -17,12 +17,11 @@ const PostButton = ({ id }: Props) => {
   const { data } = useQueryAutomationPosts()
   const { posts, onSelectPost, mutate, isPending } = useAutomationPosts(id)
 
-  // Instagram Graph API can return different shapes when there is an error.
-  // Be defensive and always fall back to an empty array instead of assuming
-  // `data.data.data` exists.
+  // Server action `getProfilePosts` now returns `{ status, data: InstagramPostProps[] }`.
+  // Be defensive and fall back to an empty array if the shape is not as expected.
   const mediaItems: InstagramPostProps[] =
-    data?.status === 200 && Array.isArray((data as any)?.data?.data)
-      ? ((data as any).data.data as InstagramPostProps[])
+    data?.status === 200 && Array.isArray((data as any)?.data)
+      ? ((data as any).data as InstagramPostProps[])
       : []
 
   const hasMedia = data?.status === 200 && mediaItems.length > 0

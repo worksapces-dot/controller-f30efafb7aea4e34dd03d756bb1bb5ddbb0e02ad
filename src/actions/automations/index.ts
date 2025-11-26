@@ -128,12 +128,25 @@ export const getProfilePosts = async () => {
   const user = await onCurrentUser()
   try {
     const profile = await findUser(user.id)
-    const posts = await fetch(
-      `${process.env.INSTAGRAM_BASE_URL}/me/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${profile?.integrations[0].token}`
-    )
+
+    const integration = profile?.integrations?.[0]
+
+    if (!integration || !integration.instagramId || !integration.token) {
+      console.log('🔴 No Instagram integration or missing instagramId/token for user')
+      return { status: 404 }
+    }
+
+    const url = `${process.env.INSTAGRAM_BASE_URL}/v21.0/${integration.instagramId}/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${integration.token}`
+
+    const posts = await fetch(url)
     const parsed = await posts.json()
-    if (parsed) return { status: 200, data: parsed }
-    console.log('🔴 Error in getting posts')
+
+    // Expected shape: { data: [...] }
+    if (Array.isArray(parsed?.data)) {
+      return { status: 200, data: parsed.data }
+    }
+
+    console.log('🔴 Error in getting posts – unexpected response shape:', parsed)
     return { status: 404 }
   } catch (error) {
     console.log('🔴 server side Error in getting posts ', error)
